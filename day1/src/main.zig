@@ -48,15 +48,14 @@ pub fn main() !void {
     std.mem.sort(i64, data_b, {}, comptime std.sort.asc(i64));
     var idx: usize = 0;
     var sum: i64 = 0;
-    while (idx < data_a.len) : (idx += 1) {
-        sum += helpers.abs(i64, data_a[idx] - data_b[idx]);
-    }
-    std.debug.print("part 1 = {d}\n", .{sum});
-
-    // part 2
     var map = std.AutoHashMap(i64, i64).init(alloc);
     defer map.deinit();
-    for (data_b) |num| {
+    while (idx < data_a.len) : (idx += 1) {
+        const num = data_b[idx];
+        // part 1 stuff
+        sum += helpers.abs(i64, data_a[idx] - num);
+
+        // go ahead and get the counts for part 2
         const entry = map.get(num);
         if (entry) |val| {
             try map.put(num, val + 1);
@@ -64,6 +63,9 @@ pub fn main() !void {
             try map.put(num, 1);
         }
     }
+    std.debug.print("part 1 = {d}\n", .{sum});
+
+    // part 2
     sum = 0;
     for (data_a) |num| {
         const entry = map.get(num);
