@@ -1,6 +1,13 @@
 const std = @import("std");
 const helpers = @import("helpers.zig");
 
+fn print_steps(rep: Report, safe: bool) void {
+    for (rep.steps) |s| {
+        std.debug.print("{d},", .{s});
+    }
+    std.debug.print(" {}\n", .{safe});
+}
+
 const Direction = enum {
     down,
     up,
@@ -33,8 +40,7 @@ fn same_direction(comptime T: type, ref: Direction, a: T, b: T) bool {
 
 fn safe_distance(comptime T: type, a: T, b: T) bool {
     const op = helpers.abs(T, a - b);
-    if (op > 0 and op < 4) return true;
-    return false;
+    return op > 0 and op < 4;
 }
 
 /// Map iteration function for operating across a file.
@@ -54,11 +60,8 @@ fn iter(ctx: *helpers.Context, line: []const u8) void {
         if (prev_val == null) {} else if (rep.direction == null) {
             const dir = Direction.eval(i64, prev_val.?, val);
             const safe = safe_distance(i64, prev_val.?, val);
-            if (dir != Direction.same and safe) {
-                rep.direction = dir;
-            } else {
-                reject = true;
-            }
+            reject = dir == Direction.same or !safe;
+            rep.direction = dir;
         } else {
             const same = same_direction(i64, rep.direction.?, prev_val.?, val);
             const safe = safe_distance(i64, prev_val.?, val);
@@ -101,33 +104,45 @@ fn part2(report_count: *ReportCount) !void {
                 if (dampend) {
                     new_rep.safe = false;
                 } else {
-                    if (!same) {
-                        if (idx > 1) {
-                            const new_dir = Direction.eval(i64, rep.steps[idx - 2], rep.steps[idx]);
-                            // TODO not sure if I need to do anything here
-                            if (new_dir != Direction.same and new_dir == new_rep.direction) {}
-                        }
-                        if (idx == 2 and (idx + 1) < rep.steps.len) {
-                            const cur_dir = Direction.eval(i64, rep.steps[idx - 1], rep.steps[idx]);
-                            const next_dir = Direction.eval(i64, rep.steps[idx], rep.steps[idx + 1]);
-                            if (cur_dir == next_dir and cur_dir != Direction.same) {
-                                new_rep.direction = cur_dir;
+                    var double_error = false;
+                    if (idx > 1) {
+                        const prev_same = same_direction(i64, new_rep.direction.?, rep.steps[idx - 2], rep.steps[idx]);
+                        const prev_safe = safe_distance(i64, rep.steps[idx - 2], rep.steps[idx]);
+                        if ((!prev_same or !prev_safe) and (idx + 1) < rep.steps.len) {
+                            var handled = false;
+                            // this is a special case where the first element gives us the wrong direction
+                            // but by removing the first element all the rest are correct.
+                            if (idx == 2 and safe) {
+                                const cur_dir = Direction.eval(i64, rep.steps[idx - 1], rep.steps[idx]);
+                                const next_dir = Direction.eval(i64, rep.steps[idx], rep.steps[idx + 1]);
+                                if (cur_dir == next_dir and cur_dir != Direction.same) {
+                                    new_rep.direction = cur_dir;
+                                    handled = true;
+                                }
+                            }
+                            if (!handled) {
+                                const skip_same = same_direction(i64, new_rep.direction.?, rep.steps[idx - 1], rep.steps[idx + 1]);
+                                const skip_safe = safe_distance(i64, rep.steps[idx - 1], rep.steps[idx + 1]);
+                                // this will skip 2 elements
+                                if (skip_same and skip_safe) {
+                                    idx += 1;
+                                } else {
+                                    double_error = true;
+                                }
                             }
                         }
                     }
-                    if (!safe) {
-                        if (idx > 1) {
-                            const new_safe = safe_distance(i64, rep.steps[idx - 2], rep.steps[idx]);
-                            if (new_safe) idx += 1;
-                        } else if (idx == 2 and (idx + 1) < rep.steps.len) {}
-                    }
                     dampend = true;
+                    if (double_error) {
+                        new_rep.safe = false;
+                    }
                 }
             }
         }
         if (new_rep.safe) {
             report_count.safe_count += 1;
         }
+        //print_steps(rep, new_rep.safe);
     }
 }
 
