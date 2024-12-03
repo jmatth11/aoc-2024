@@ -1,13 +1,7 @@
 const std = @import("std");
 const helpers = @import("helpers.zig");
 
-fn print_steps(rep: Report, safe: bool) void {
-    for (rep.steps) |s| {
-        std.debug.print("{d},", .{s});
-    }
-    std.debug.print(" {}\n", .{safe});
-}
-
+/// The direction the steps are trending
 const Direction = enum {
     down,
     up,
@@ -21,23 +15,27 @@ const Direction = enum {
     }
 };
 
+/// Report structure to track meta info.
 const Report = struct {
     safe: bool = true,
     steps: []i64,
     direction: ?Direction = null,
 };
 
+/// Structure to keep track of information about multiple reports.
 const ReportCount = struct {
     alloc: std.mem.Allocator,
     safe_count: u64 = 0,
     reports: std.ArrayList(Report),
 };
 
+/// Determine if the given steps are the same as the reference direction.
 fn same_direction(comptime T: type, ref: Direction, a: T, b: T) bool {
     const dir = Direction.eval(T, a, b);
     return ref == dir;
 }
 
+/// Determine if the given steps are a safe distance from each other.
 fn safe_distance(comptime T: type, a: T, b: T) bool {
     const op = helpers.abs(T, a - b);
     return op > 0 and op < 4;
@@ -80,6 +78,7 @@ fn iter(ctx: *helpers.Context, line: []const u8) void {
     report_count.reports.append(rep) catch unreachable;
 }
 
+/// Logic to handle part 2 -- which allows for one wrong step.
 fn part2(report_count: *ReportCount) !void {
     for (report_count.reports.items) |rep| {
         var new_rep = Report{
