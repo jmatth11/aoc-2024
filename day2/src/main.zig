@@ -100,49 +100,83 @@ fn part2(report_count: *ReportCount) !void {
                 same = same_direction(i64, dir, rep.steps[idx - 1], rep.steps[idx]);
             }
             const safe = safe_distance(i64, rep.steps[idx - 1], rep.steps[idx]);
-            if (!same or !safe) {
-                if (dampend) {
-                    new_rep.safe = false;
-                } else {
-                    var double_error = false;
-                    if (idx > 1) {
-                        const prev_same = same_direction(i64, new_rep.direction.?, rep.steps[idx - 2], rep.steps[idx]);
-                        const prev_safe = safe_distance(i64, rep.steps[idx - 2], rep.steps[idx]);
-                        if ((!prev_same or !prev_safe) and (idx + 1) < rep.steps.len) {
-                            var handled = false;
-                            // this is a special case where the first element gives us the wrong direction
-                            // but by removing the first element all the rest are correct.
-                            if (idx == 2 and safe) {
-                                const cur_dir = Direction.eval(i64, rep.steps[idx - 1], rep.steps[idx]);
-                                const next_dir = Direction.eval(i64, rep.steps[idx], rep.steps[idx + 1]);
-                                if (cur_dir == next_dir and cur_dir != Direction.same) {
-                                    new_rep.direction = cur_dir;
-                                    handled = true;
-                                }
+            if (same and safe) continue;
+            if (dampend) {
+                new_rep.safe = false;
+            } else {
+                var double_error = false;
+                if (idx > 1) {
+                    const prev_same = same_direction(
+                        i64,
+                        new_rep.direction.?,
+                        rep.steps[idx - 2],
+                        rep.steps[idx],
+                    );
+                    const prev_safe = safe_distance(
+                        i64,
+                        rep.steps[idx - 2],
+                        rep.steps[idx],
+                    );
+                    if ((!prev_same or !prev_safe) and (idx + 1) < rep.steps.len) {
+                        var handled = false;
+                        // this is a special case where the first element gives us the wrong direction
+                        // but by removing the first element all the rest are correct.
+                        if (idx == 2 and safe) {
+                            const cur_dir = Direction.eval(i64, rep.steps[idx - 1], rep.steps[idx]);
+                            const next_dir = Direction.eval(i64, rep.steps[idx], rep.steps[idx + 1]);
+                            if (cur_dir == next_dir and cur_dir != Direction.same) {
+                                new_rep.direction = cur_dir;
+                                handled = true;
                             }
-                            if (!handled) {
-                                const skip_same = same_direction(i64, new_rep.direction.?, rep.steps[idx - 1], rep.steps[idx + 1]);
-                                const skip_safe = safe_distance(i64, rep.steps[idx - 1], rep.steps[idx + 1]);
-                                // this will skip 2 elements
-                                if (skip_same and skip_safe) {
-                                    idx += 1;
-                                } else {
-                                    double_error = true;
-                                }
+                        }
+                        if (!handled) {
+                            const skip_same = same_direction(
+                                i64,
+                                new_rep.direction.?,
+                                rep.steps[idx - 1],
+                                rep.steps[idx + 1],
+                            );
+                            const skip_safe = safe_distance(
+                                i64,
+                                rep.steps[idx - 1],
+                                rep.steps[idx + 1],
+                            );
+                            // this will skip 2 elements
+                            if (skip_same and skip_safe) {
+                                idx += 1;
+                            } else {
+                                double_error = true;
                             }
                         }
                     }
-                    dampend = true;
-                    if (double_error) {
-                        new_rep.safe = false;
+                } else {
+                    const skip_dir = Direction.eval(i64, rep.steps[idx - 1], rep.steps[idx + 1]);
+                    const skip_safe = safe_distance(i64, rep.steps[idx - 1], rep.steps[idx + 1]);
+                    if (skip_dir != Direction.same and skip_safe) {
+                        idx += 1;
+                        new_rep.direction = skip_dir;
+                    } else {
+                        const next_dir = Direction.eval(i64, rep.steps[idx], rep.steps[idx + 1]);
+                        const next_safe = safe_distance(i64, rep.steps[idx], rep.steps[idx + 1]);
+                        if (next_dir != Direction.same and next_safe) {
+                            new_rep.direction = next_dir;
+                            // since we already do the comparison of the next
+                            // iteration, we can skip ahead
+                            idx += 1;
+                        } else {
+                            double_error = true;
+                        }
                     }
+                }
+                dampend = true;
+                if (double_error) {
+                    new_rep.safe = false;
                 }
             }
         }
         if (new_rep.safe) {
             report_count.safe_count += 1;
         }
-        //print_steps(rep, new_rep.safe);
     }
 }
 
